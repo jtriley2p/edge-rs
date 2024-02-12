@@ -1,3 +1,4 @@
+use crate::locations::Location;
 use crate::span::Span;
 use std::{fmt, fmt::Write};
 
@@ -24,6 +25,8 @@ impl Token {
 pub enum TokenKind {
     /// EOF Token
     Eof,
+    /// Pointer data location
+    Pointer(Location),
     /// A Comment
     Comment(String),
     /// Whitespace
@@ -50,7 +53,14 @@ impl TokenKind {
 
     /// Transform a TokenKind into a Token given a start and end position
     pub fn into_span(self, start: u32, end: u32) -> Token {
-        Token { kind: self, span: Span { start: start as usize, end: end as usize, file: None } }
+        Token {
+            kind: self,
+            span: Span {
+                start: start as usize,
+                end: end as usize,
+                file: None,
+            },
+        }
     }
 }
 
@@ -60,12 +70,13 @@ impl fmt::Display for TokenKind {
             TokenKind::Eof => "EOF",
             TokenKind::Comment(s) => return write!(f, "Comment({s})"),
             TokenKind::Contract => "contract",
+            TokenKind::Pointer(l) => return write!(f, "{l}"),
             TokenKind::Literal(l) => {
                 let mut s = String::new();
                 for b in l.iter() {
                     let _ = write!(&mut s, "{b:02x}");
                 }
-                return write!(f, "{s}")
+                return write!(f, "{s}");
             }
             TokenKind::Whitespace => " ",
             TokenKind::Div => "/",
