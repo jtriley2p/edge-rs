@@ -54,12 +54,24 @@ pub enum TokenKind {
     Literal(Literal),
     /// An Identifier
     Ident(String),
+    /// An open parenthesis
+    OpenParen,
+    /// A close parenthesis
+    CloseParen,
     /// An open brace
     OpenBrace,
     /// A close brace
     CloseBrace,
-    /// A Division operator
-    Div,
+    /// An open bracket
+    OpenBracket,
+    /// A close bracket
+    CloseBracket,
+    /// A comma
+    Comma,
+    /// A colon
+    Colon,
+    /// A semicolon
+    Semicolon,
 }
 
 impl TokenKind {
@@ -98,10 +110,16 @@ impl fmt::Display for TokenKind {
                 return write!(f, "{s}");
             }
             TokenKind::Whitespace => " ",
-            TokenKind::Div => "/",
             TokenKind::Ident(s) => return write!(f, "{s}"),
             TokenKind::OpenBrace => "{",
             TokenKind::CloseBrace => "}",
+            TokenKind::OpenParen => "(",
+            TokenKind::CloseParen => ")",
+            TokenKind::OpenBracket => "[",
+            TokenKind::CloseBracket => "]",
+            TokenKind::Comma => ",",
+            TokenKind::Colon => ":",
+            TokenKind::Semicolon => ";",
         };
         write!(f, "{x}")
     }

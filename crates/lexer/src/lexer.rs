@@ -196,6 +196,7 @@ impl<'a> Lexer<'a> {
                 comment_string.push(ch);
                 if let Some(ch2) = self.peek() {
                     match ch2 {
+                        // TODO: Add support for /// and //! comments
                         '/' => {
                             // Consume until newline
                             comment_string.push(ch2);
@@ -237,10 +238,14 @@ impl<'a> Lexer<'a> {
 
                             Ok(TokenKind::Comment(comment_string).into_span(start, self.position))
                         }
-                        _ => self.single_char_token(TokenKind::Div),
+                        _ => self.single_char_token(TokenKind::Operator(Operator::Arithmetic(
+                            ArithmeticOperator::Div,
+                        ))),
                     }
                 } else {
-                    self.single_char_token(TokenKind::Div)
+                    self.single_char_token(TokenKind::Operator(Operator::Arithmetic(
+                        ArithmeticOperator::Div,
+                    )))
                 }
             }
 
@@ -277,6 +282,7 @@ impl<'a> Lexer<'a> {
             //         ));
             //     }
             // }
+
             // Alphabetical characters
             ch if ch.is_alphabetic() || ch.eq(&'_') => {
                 let (word, start, mut end) =
@@ -343,6 +349,16 @@ impl<'a> Lexer<'a> {
             }
             '{' => self.single_char_token(TokenKind::OpenBrace),
             '}' => self.single_char_token(TokenKind::CloseBrace),
+            '=' => self.single_char_token(TokenKind::Operator(Operator::Assignment)),
+            '(' => self.single_char_token(TokenKind::OpenParen),
+            ')' => self.single_char_token(TokenKind::CloseParen),
+            '[' => self.single_char_token(TokenKind::OpenBracket),
+            ']' => self.single_char_token(TokenKind::CloseBracket),
+
+            ',' => self.single_char_token(TokenKind::Comma),
+            ':' => self.single_char_token(TokenKind::Colon),
+            ';' => self.single_char_token(TokenKind::Semicolon),
+
             ch if ch.is_ascii_whitespace() => {
                 let (_, start, end) = self.eat_whitespace();
                 Ok(TokenKind::Whitespace.into_span(start, end))

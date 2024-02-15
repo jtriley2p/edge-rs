@@ -5,6 +5,8 @@ use std::fmt;
 /// Operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Operator {
+    /// An Assignment Operator
+    Assignment,
     /// Arithmetic Operator
     Arithmetic(ArithmeticOperator),
     /// Comparison Operator
@@ -18,6 +20,7 @@ pub enum Operator {
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Operator::Assignment => write!(f, "="),
             Operator::Arithmetic(op) => write!(f, "{}", op),
             Operator::Comparison(op) => write!(f, "{}", op),
             Operator::Logical(op) => write!(f, "{}", op),

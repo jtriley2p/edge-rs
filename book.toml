@@ -1,0 +1,27 @@
+[book]
+authors = ["refcell"]
+language = "en"
+multilingual = false
+src = "book"
+title = "Edge Language"
+description = "The Edge Language Book"
+
+[output.html]
+theme = "book/theme"
+git-repository-url = "https://github.com/refcell/edge-rs"
+default-theme = "ayu"
+# no-section-label = true
+
+[output.html.fold]
+enable = false 
+# level = 1
+
+[build]
+build-dir = "target/book"
+
+[preprocessor.template]
+before = ["links"]
+
+[preprocessor.index]
+
+[preprocessor.links]

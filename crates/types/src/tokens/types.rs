@@ -5,14 +5,16 @@ use std::fmt;
 /// A kind of data type
 #[derive(Debug, Clone, PartialOrd, PartialEq, Eq)]
 pub enum DataType {
-    /// A 32-bit signed integer
-    I32,
-    /// A 64-bit signed integer
-    I64,
+    /// A Unsigned 8-bit integer
+    U8,
     /// A 32-bit unsigned integer
     U32,
     /// A 64-bit unsigned integer
     U64,
+    /// A 32-bit signed integer
+    I32,
+    /// A 64-bit signed integer
+    I64,
     /// A 32-bit floating point number
     F32,
     /// A 64-bit floating point number
@@ -50,6 +52,7 @@ impl fmt::Display for DataType {
         match self {
             DataType::I32 => write!(f, "i32"),
             DataType::I64 => write!(f, "i64"),
+            DataType::U8 => write!(f, "u8"),
             DataType::U32 => write!(f, "u32"),
             DataType::U64 => write!(f, "u64"),
             DataType::F32 => write!(f, "f32"),
