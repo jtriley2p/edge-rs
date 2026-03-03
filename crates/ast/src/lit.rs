@@ -2,8 +2,9 @@
 //!
 //! Defines literal values that appear in source code.
 
-use crate::ty::PrimitiveType;
 use edge_types::span::Span;
+
+use crate::ty::PrimitiveType;
 
 /// A literal value
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,6 +23,7 @@ pub enum Lit {
 
 impl Lit {
     /// Get the span of this literal
+    #[allow(clippy::match_same_arms)]
     pub fn span(&self) -> Span {
         match self {
             Self::Int(_, _, span) => span.clone(),

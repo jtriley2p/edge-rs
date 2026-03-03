@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+
 use crate::installer::Installer;
 
 /// The Edge toolchain installer and version manager

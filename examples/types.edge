@@ -1,0 +1,46 @@
+// types.edge — showcasing Edge's type system
+//
+// Run with:
+//   edgec lex examples/types.edge
+//   edgec parse examples/types.edge
+
+// --- Primitive types ---
+
+let a: u8;
+let b: u256;
+let c: i128;
+let d: b32;
+let e: addr;
+let f: bool;
+let g: bit;
+
+// --- Data location annotations ---
+
+let stored: &s u256;        // storage
+let transient_val: &t u256; // transient storage (EIP-1153)
+let in_memory: &m u256;     // memory
+
+// --- Type aliases ---
+
+type TokenId = u256;
+type Owner = addr;
+type Balance = u256;
+
+// --- Constants ---
+
+const ZERO: u256 = 0;
+const MAX_SUPPLY: u256 = 1000000;
+
+// --- Function signatures ---
+
+fn add(x: u256, y: u256) -> (u256) {
+    return x + y;
+}
+
+fn min(x: u256, y: u256) -> (u256) {
+    return x;
+}
+
+fn identity(x: u256) -> (u256) {
+    return x;
+}

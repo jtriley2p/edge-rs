@@ -1,3 +1,5 @@
+//! Integration tests for the Edge language parser.
+
 use edge_parser::parse;
 
 // ─── Empty Program ──────────────────────────────────────────────────
@@ -18,7 +20,11 @@ fn parse_empty_source() {
 #[test]
 fn parse_single_var_decl() {
     let result = parse("let x: u256;");
-    assert!(result.is_ok(), "parse(\"let x: u256;\") failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "parse(\"let x: u256;\") failed: {:?}",
+        result.err()
+    );
     let program = result.unwrap();
     assert_eq!(program.stmts.len(), 1, "expected 1 statement");
     assert!(
@@ -53,7 +59,11 @@ fn parse_two_var_decls() {
 #[test]
 fn parse_empty_fn() {
     let result = parse("fn foo() {}");
-    assert!(result.is_ok(), "parse(\"fn foo() {{}}\") failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "parse(\"fn foo() {{}}\") failed: {:?}",
+        result.err()
+    );
     let program = result.unwrap();
     assert_eq!(program.stmts.len(), 1, "expected 1 statement");
     assert!(
@@ -106,7 +116,11 @@ fn parse_fn_with_return_type() {
 fn parse_binary_add_expression() {
     // Expression statements go through parse_expr_stmt which wraps them in VarAssign
     let result = parse("1 + 2;");
-    assert!(result.is_ok(), "parse(\"1 + 2;\") failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "parse(\"1 + 2;\") failed: {:?}",
+        result.err()
+    );
     let program = result.unwrap();
     assert_eq!(program.stmts.len(), 1);
 
@@ -121,7 +135,10 @@ fn parse_binary_add_expression() {
             assert_eq!(*op, edge_ast::BinOp::Add);
         }
     } else {
-        panic!("expected VarAssign wrapping expression, got {:?}", program.stmts[0]);
+        panic!(
+            "expected VarAssign wrapping expression, got {:?}",
+            program.stmts[0]
+        );
     }
 }
 

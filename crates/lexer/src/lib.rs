@@ -16,6 +16,5 @@ pub mod errors;
 
 /// The prelude re-exports commonly used types across various modules in this crate.
 pub mod prelude {
-    pub use crate::errors::*;
-    pub use crate::lexer::*;
+    pub use crate::{errors::*, lexer::*};
 }

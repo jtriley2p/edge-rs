@@ -2,12 +2,15 @@
 //!
 //! Defines all expression types used in the Edge language.
 
-use crate::lit::Lit;
-use crate::op::{BinOp, UnaryOp};
-use crate::pattern::UnionPattern;
-use crate::ty::Location;
-use crate::Ident;
 use edge_types::span::Span;
+
+use crate::{
+    lit::Lit,
+    op::{BinOp, UnaryOp},
+    pattern::UnionPattern,
+    ty::Location,
+    Ident,
+};
 
 /// An expression that produces a value
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +78,7 @@ pub enum Expr {
 
 impl Expr {
     /// Get the span of this expression
+    #[allow(clippy::match_same_arms)]
     pub fn span(&self) -> Span {
         match self {
             Self::Literal(lit) => lit.span(),

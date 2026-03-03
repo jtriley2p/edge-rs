@@ -16,9 +16,5 @@ pub mod tokens;
 
 /// The prelude re-exports commonly used types across various modules in this crate.
 pub mod prelude {
-    pub use crate::bytes::*;
-    pub use crate::source::*;
-    pub use crate::span::*;
-    pub use crate::time::*;
-    pub use crate::tokens::*;
+    pub use crate::{bytes::*, source::*, span::*, time::*, tokens::*};
 }

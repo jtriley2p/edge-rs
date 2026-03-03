@@ -2,10 +2,12 @@
 //!
 //! Contains the logic for handling source code spans.
 
+use std::{
+    ops::{Add, Range},
+    sync::Arc,
+};
+
 use crate::source::*;
-use std::ops::Add;
-use std::ops::Range;
-use std::sync::Arc;
 
 /// Spanned trait requires a type to have a span.
 pub trait Spanned {
@@ -58,8 +60,7 @@ impl Span {
                 f.source
                     .as_ref()
                     .map(|s| {
-                        let line_num = &s[0..self.start]
-                            .as_bytes()
+                        let line_num = &s.as_bytes()[0..self.start]
                             .iter()
                             .filter(|&&c| c == b'\n')
                             .count()

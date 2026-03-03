@@ -3,11 +3,14 @@
 //! Implements a recursive descent parser with Pratt parsing for expressions.
 
 use edge_ast::{
-    BinOp, CodeBlock, BlockItem, LoopBlock, LoopItem, Expr, FnDecl, Ident, Lit, Program, Stmt, TypeSig, UnaryOp,
+    BinOp, BlockItem, CodeBlock, Expr, FnDecl, Ident, Lit, LoopBlock, LoopItem, Program, Stmt,
+    TypeSig, UnaryOp,
 };
 use edge_lexer::lexer::Lexer;
-use edge_types::span::Span;
-use edge_types::tokens::{Keyword, Operator, Token, TokenKind};
+use edge_types::{
+    span::Span,
+    tokens::{Keyword, Operator, Token, TokenKind},
+};
 
 use crate::errors::{ParseError, ParseResult};
 
@@ -25,9 +28,9 @@ impl Parser {
         let mut tokens = Vec::new();
 
         loop {
-            let token = lexer.next_token().map_err(|e| {
-                ParseError::LexerError(format!("{e:?}"))
-            })?;
+            let token = lexer
+                .next_token()
+                .map_err(|e| ParseError::LexerError(format!("{e:?}")))?;
 
             let is_eof = token.kind == TokenKind::Eof;
             tokens.push(token);
@@ -170,7 +173,11 @@ impl Parser {
         };
 
         Ok(Stmt::ConstAssign(
-            edge_ast::ConstDecl { name, ty, span: span.clone() },
+            edge_ast::ConstDecl {
+                name,
+                ty,
+                span: span.clone(),
+            },
             expr,
             span,
         ))
@@ -191,7 +198,12 @@ impl Parser {
         };
 
         Ok(Stmt::TypeAssign(
-            edge_ast::TypeDecl { name, type_params: Vec::new(), is_pub: false, span: span.clone() },
+            edge_ast::TypeDecl {
+                name,
+                type_params: Vec::new(),
+                is_pub: false,
+                span: span.clone(),
+            },
             ty,
             span,
         ))
@@ -210,7 +222,11 @@ impl Parser {
         self.expect(TokenKind::Semicolon)?;
 
         let span = expr.span();
-        Ok(Stmt::VarAssign(expr, Expr::Literal(Box::new(Lit::Bool(false, span.clone()))), span))
+        Ok(Stmt::VarAssign(
+            expr,
+            Expr::Literal(Box::new(Lit::Bool(false, span.clone()))),
+            span,
+        ))
     }
 
     /// Parse if-else statement
@@ -293,7 +309,10 @@ impl Parser {
             init,
             cond,
             update,
-            LoopBlock { items, span: start_tok.span },
+            LoopBlock {
+                items,
+                span: start_tok.span,
+            },
         ))
     }
 
@@ -307,7 +326,10 @@ impl Parser {
 
         Ok(Stmt::WhileLoop(
             cond,
-            LoopBlock { items, span: start_tok.span },
+            LoopBlock {
+                items,
+                span: start_tok.span,
+            },
         ))
     }
 
@@ -332,10 +354,14 @@ impl Parser {
         let block = self.parse_code_block()?;
         let span = block.span.clone();
 
-        let loop_items = block.stmts.into_iter().map(|item| match item {
-            BlockItem::Expr(e) => LoopItem::Expr(e),
-            BlockItem::Stmt(s) => LoopItem::Stmt(s),
-        }).collect();
+        let loop_items = block
+            .stmts
+            .into_iter()
+            .map(|item| match item {
+                BlockItem::Expr(e) => LoopItem::Expr(e),
+                BlockItem::Stmt(s) => LoopItem::Stmt(s),
+            })
+            .collect();
 
         Ok(Stmt::Loop(LoopBlock {
             items: loop_items,
@@ -598,36 +624,34 @@ impl Parser {
 
     /// Get precedence and right-associativity of current operator
     fn get_operator_precedence(&self) -> Option<(u8, bool)> {
-        use edge_types::tokens::{Operator, LogicalOperator, ComparisonOperator, BitwiseOperator, ArithmeticOperator};
+        use edge_types::tokens::{
+            ArithmeticOperator, BitwiseOperator, ComparisonOperator, LogicalOperator, Operator,
+        };
 
         match &self.peek().kind {
-            TokenKind::Operator(Operator::Logical(op)) => {
-                Some(match op {
-                    LogicalOperator::Or => (1, false),
-                    LogicalOperator::And => (2, false),
-                    _ => return None,
-                })
-            }
-            TokenKind::Operator(Operator::Comparison(op)) => {
-                Some(match op {
-                    ComparisonOperator::Equal | ComparisonOperator::NotEqual => (3, false),
-                    _ => (4, false),
-                })
-            }
-            TokenKind::Operator(Operator::Bitwise(op)) => {
-                Some(match op {
-                    BitwiseOperator::Or => (5, false),
-                    BitwiseOperator::Xor => (6, false),
-                    BitwiseOperator::And => (7, false),
-                    BitwiseOperator::LeftShift | BitwiseOperator::RightShift => (8, false),
-                    _ => return None,
-                })
-            }
+            TokenKind::Operator(Operator::Logical(op)) => Some(match op {
+                LogicalOperator::Or => (1, false),
+                LogicalOperator::And => (2, false),
+                _ => return None,
+            }),
+            TokenKind::Operator(Operator::Comparison(op)) => Some(match op {
+                ComparisonOperator::Equal | ComparisonOperator::NotEqual => (3, false),
+                _ => (4, false),
+            }),
+            TokenKind::Operator(Operator::Bitwise(op)) => Some(match op {
+                BitwiseOperator::Or => (5, false),
+                BitwiseOperator::Xor => (6, false),
+                BitwiseOperator::And => (7, false),
+                BitwiseOperator::LeftShift | BitwiseOperator::RightShift => (8, false),
+                _ => return None,
+            }),
             TokenKind::Operator(Operator::Arithmetic(op)) => {
                 Some(match op {
                     ArithmeticOperator::Add | ArithmeticOperator::Sub => (9, false),
-                    ArithmeticOperator::Mul | ArithmeticOperator::Div | ArithmeticOperator::Mod => (10, false),
-                    ArithmeticOperator::Exp => (11, true),  // Right associative
+                    ArithmeticOperator::Mul | ArithmeticOperator::Div | ArithmeticOperator::Mod => {
+                        (10, false)
+                    }
+                    ArithmeticOperator::Exp => (11, true), // Right associative
                 })
             }
             _ => None,
@@ -636,7 +660,9 @@ impl Parser {
 
     /// Parse binary operator
     fn parse_bin_op(&mut self) -> ParseResult<BinOp> {
-        use edge_types::tokens::{Operator, LogicalOperator, ComparisonOperator, BitwiseOperator, ArithmeticOperator};
+        use edge_types::tokens::{
+            ArithmeticOperator, BitwiseOperator, ComparisonOperator, LogicalOperator, Operator,
+        };
 
         let op = match &self.peek().kind {
             TokenKind::Operator(Operator::Arithmetic(ArithmeticOperator::Add)) => BinOp::Add,
@@ -650,9 +676,13 @@ impl Parser {
             TokenKind::Operator(Operator::Comparison(ComparisonOperator::Equal)) => BinOp::Eq,
             TokenKind::Operator(Operator::Comparison(ComparisonOperator::NotEqual)) => BinOp::Neq,
             TokenKind::Operator(Operator::Comparison(ComparisonOperator::LessThan)) => BinOp::Lt,
-            TokenKind::Operator(Operator::Comparison(ComparisonOperator::LessThanOrEqual)) => BinOp::Lte,
+            TokenKind::Operator(Operator::Comparison(ComparisonOperator::LessThanOrEqual)) => {
+                BinOp::Lte
+            }
             TokenKind::Operator(Operator::Comparison(ComparisonOperator::GreaterThan)) => BinOp::Gt,
-            TokenKind::Operator(Operator::Comparison(ComparisonOperator::GreaterThanOrEqual)) => BinOp::Gte,
+            TokenKind::Operator(Operator::Comparison(ComparisonOperator::GreaterThanOrEqual)) => {
+                BinOp::Gte
+            }
             TokenKind::Operator(Operator::Bitwise(BitwiseOperator::And)) => BinOp::BitwiseAnd,
             TokenKind::Operator(Operator::Bitwise(BitwiseOperator::Or)) => BinOp::BitwiseOr,
             TokenKind::Operator(Operator::Bitwise(BitwiseOperator::Xor)) => BinOp::BitwiseXor,
@@ -672,12 +702,18 @@ impl Parser {
 
     /// Try to parse unary operator
     fn try_parse_unary_op(&self) -> Option<UnaryOp> {
-        use edge_types::tokens::{Operator, ArithmeticOperator, BitwiseOperator, LogicalOperator};
+        use edge_types::tokens::{ArithmeticOperator, BitwiseOperator, LogicalOperator, Operator};
 
         match &self.peek().kind {
-            TokenKind::Operator(Operator::Arithmetic(ArithmeticOperator::Sub)) => Some(UnaryOp::Neg),
-            TokenKind::Operator(Operator::Bitwise(BitwiseOperator::Not)) => Some(UnaryOp::BitwiseNot),
-            TokenKind::Operator(Operator::Logical(LogicalOperator::Not)) => Some(UnaryOp::LogicalNot),
+            TokenKind::Operator(Operator::Arithmetic(ArithmeticOperator::Sub)) => {
+                Some(UnaryOp::Neg)
+            }
+            TokenKind::Operator(Operator::Bitwise(BitwiseOperator::Not)) => {
+                Some(UnaryOp::BitwiseNot)
+            }
+            TokenKind::Operator(Operator::Logical(LogicalOperator::Not)) => {
+                Some(UnaryOp::LogicalNot)
+            }
             _ => None,
         }
     }

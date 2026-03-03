@@ -1,14 +1,17 @@
 //! The main compiler struct that orchestrates the compilation pipeline
 
+use std::fs;
+
 use edge_ast::Program;
 use edge_diagnostics::Diagnostic;
 use edge_lexer::lexer::Lexer;
 use edge_parser::Parser;
 use edge_types::tokens::Token;
-use std::fs;
 
-use crate::config::{CompilerConfig, EmitKind};
-use crate::session::Session;
+use crate::{
+    config::{CompilerConfig, EmitKind},
+    session::Session,
+};
 
 /// Output from a compilation
 #[derive(Debug)]
@@ -122,14 +125,16 @@ impl Compiler {
     /// Run the parser and produce an AST
     fn parse(&mut self) -> Result<Program, CompileError> {
         let mut parser = Parser::new(&self.session.source).map_err(|e| {
-            self.session.emit_error(Diagnostic::error(format!("parse error: {e}")));
+            self.session
+                .emit_error(Diagnostic::error(format!("parse error: {e}")));
             CompileError::ParseErrors
         })?;
 
         match parser.parse() {
             Ok(program) => Ok(program),
             Err(e) => {
-                self.session.emit_error(Diagnostic::error(format!("parse error: {e}")));
+                self.session
+                    .emit_error(Diagnostic::error(format!("parse error: {e}")));
                 self.session.diagnostics.report_all(&self.session.source);
                 Err(CompileError::ParseErrors)
             }

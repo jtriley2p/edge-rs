@@ -1,10 +1,12 @@
-use crate::errors::*;
-use edge_types::prelude::*;
 use std::{
     iter::{Peekable, Zip},
     ops::RangeFrom,
     str::Chars,
 };
+
+use edge_types::prelude::*;
+
+use crate::errors::*;
 
 /// Defines a context in which the lexing happens.
 /// Allows to differientate between EVM types and opcodes that can either
@@ -240,8 +242,7 @@ impl<'a> Lexer<'a> {
     pub fn eat_binary(&mut self) -> TokenResult {
         let start = self.position;
         self.consume(); // consume 'b'
-        let (binary_str, _, end) =
-            self.eat_while(None, |ch| ch == '0' || ch == '1' || ch == '_');
+        let (binary_str, _, end) = self.eat_while(None, |ch| ch == '0' || ch == '1' || ch == '_');
 
         // Check for type suffix
         let suffix_start = self.position;
@@ -468,19 +469,8 @@ impl<'a> Lexer<'a> {
                     found_kind = None;
                 }
 
-                if let Some(kind) = &found_kind {
-                    match kind {
-                        TokenKind::Keyword(Keyword::Contract) => self.context = Context::Contract,
-                        // TokenKind::Macro | TokenKind::Fn | TokenKind::Test => {
-                        //     self.context = Context::MacroDefinition
-                        // }
-                        // TokenKind::Function | TokenKind::Event | TokenKind::Error => {
-                        //     self.context = Context::Abi
-                        // }
-                        // TokenKind::Constant => self.context = Context::Constant,
-                        // TokenKind::CodeTable => self.context = Context::CodeTableBody,
-                        _ => (),
-                    }
+                if let Some(TokenKind::Keyword(Keyword::Contract)) = &found_kind {
+                    self.context = Context::Contract;
                 }
 
                 // if let Some(':') = self.peek() {
@@ -535,23 +525,21 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            '-' => {
-                match self.peek() {
-                    Some('=') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
-                            CompoundAssignmentOperator::SubAssign,
-                        )))
-                    }
-                    Some('>') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Arrow)
-                    }
-                    _ => self.single_char_token(TokenKind::Operator(Operator::Arithmetic(
-                        ArithmeticOperator::Sub,
-                    ))),
+            '-' => match self.peek() {
+                Some('=') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
+                        CompoundAssignmentOperator::SubAssign,
+                    )))
                 }
-            }
+                Some('>') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Arrow)
+                }
+                _ => self.single_char_token(TokenKind::Operator(Operator::Arithmetic(
+                    ArithmeticOperator::Sub,
+                ))),
+            },
 
             '*' => {
                 if self.peek() == Some('*') {
@@ -658,9 +646,9 @@ impl<'a> Lexer<'a> {
                         }
                         '=' => {
                             self.consume();
-                            self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
-                                CompoundAssignmentOperator::AndAssign,
-                            )))
+                            self.single_char_token(TokenKind::Operator(
+                                Operator::CompoundAssignment(CompoundAssignmentOperator::AndAssign),
+                            ))
                         }
                         '&' => {
                             self.consume();
@@ -679,25 +667,22 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            '|' => {
-                match self.peek() {
-                    Some('=') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
-                            CompoundAssignmentOperator::OrAssign,
-                        )))
-                    }
-                    Some('|') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Operator(Operator::Logical(
-                            LogicalOperator::Or,
-                        )))
-                    }
-                    _ => self.single_char_token(TokenKind::Operator(Operator::Bitwise(
-                        BitwiseOperator::Or,
-                    ))),
+            '|' => match self.peek() {
+                Some('=') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
+                        CompoundAssignmentOperator::OrAssign,
+                    )))
                 }
-            }
+                Some('|') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Operator(Operator::Logical(
+                        LogicalOperator::Or,
+                    )))
+                }
+                _ => self
+                    .single_char_token(TokenKind::Operator(Operator::Bitwise(BitwiseOperator::Or))),
+            },
 
             '^' => {
                 if self.peek() == Some('=') {
@@ -712,9 +697,9 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            '~' => self.single_char_token(TokenKind::Operator(Operator::Bitwise(
-                BitwiseOperator::Not,
-            ))),
+            '~' => {
+                self.single_char_token(TokenKind::Operator(Operator::Bitwise(BitwiseOperator::Not)))
+            }
 
             '!' => {
                 if self.peek() == Some('=') {
@@ -729,75 +714,69 @@ impl<'a> Lexer<'a> {
                 }
             }
 
-            '<' => {
-                match self.peek() {
-                    Some('<') => {
+            '<' => match self.peek() {
+                Some('<') => {
+                    self.consume();
+                    if self.peek() == Some('=') {
                         self.consume();
-                        if self.peek() == Some('=') {
-                            self.consume();
-                            self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
-                                CompoundAssignmentOperator::ShlAssign,
-                            )))
-                        } else {
-                            self.single_char_token(TokenKind::Operator(Operator::Bitwise(
-                                BitwiseOperator::LeftShift,
-                            )))
-                        }
-                    }
-                    Some('=') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Operator(Operator::Comparison(
-                            ComparisonOperator::LessThanOrEqual,
+                        self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
+                            CompoundAssignmentOperator::ShlAssign,
+                        )))
+                    } else {
+                        self.single_char_token(TokenKind::Operator(Operator::Bitwise(
+                            BitwiseOperator::LeftShift,
                         )))
                     }
-                    _ => self.single_char_token(TokenKind::Operator(Operator::Comparison(
-                        ComparisonOperator::LessThan,
-                    ))),
                 }
-            }
+                Some('=') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Operator(Operator::Comparison(
+                        ComparisonOperator::LessThanOrEqual,
+                    )))
+                }
+                _ => self.single_char_token(TokenKind::Operator(Operator::Comparison(
+                    ComparisonOperator::LessThan,
+                ))),
+            },
 
-            '>' => {
-                match self.peek() {
-                    Some('>') => {
+            '>' => match self.peek() {
+                Some('>') => {
+                    self.consume();
+                    if self.peek() == Some('=') {
                         self.consume();
-                        if self.peek() == Some('=') {
-                            self.consume();
-                            self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
-                                CompoundAssignmentOperator::ShrAssign,
-                            )))
-                        } else {
-                            self.single_char_token(TokenKind::Operator(Operator::Bitwise(
-                                BitwiseOperator::RightShift,
-                            )))
-                        }
-                    }
-                    Some('=') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Operator(Operator::Comparison(
-                            ComparisonOperator::GreaterThanOrEqual,
+                        self.single_char_token(TokenKind::Operator(Operator::CompoundAssignment(
+                            CompoundAssignmentOperator::ShrAssign,
+                        )))
+                    } else {
+                        self.single_char_token(TokenKind::Operator(Operator::Bitwise(
+                            BitwiseOperator::RightShift,
                         )))
                     }
-                    _ => self.single_char_token(TokenKind::Operator(Operator::Comparison(
-                        ComparisonOperator::GreaterThan,
-                    ))),
                 }
-            }
+                Some('=') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Operator(Operator::Comparison(
+                        ComparisonOperator::GreaterThanOrEqual,
+                    )))
+                }
+                _ => self.single_char_token(TokenKind::Operator(Operator::Comparison(
+                    ComparisonOperator::GreaterThan,
+                ))),
+            },
 
-            '=' => {
-                match self.peek() {
-                    Some('=') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::Operator(Operator::Comparison(
-                            ComparisonOperator::Equal,
-                        )))
-                    }
-                    Some('>') => {
-                        self.consume();
-                        self.single_char_token(TokenKind::FatArrow)
-                    }
-                    _ => self.single_char_token(TokenKind::Operator(Operator::Assignment)),
+            '=' => match self.peek() {
+                Some('=') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::Operator(Operator::Comparison(
+                        ComparisonOperator::Equal,
+                    )))
                 }
-            }
+                Some('>') => {
+                    self.consume();
+                    self.single_char_token(TokenKind::FatArrow)
+                }
+                _ => self.single_char_token(TokenKind::Operator(Operator::Assignment)),
+            },
 
             '.' => self.single_char_token(TokenKind::Dot),
 
@@ -816,20 +795,18 @@ impl<'a> Lexer<'a> {
 
             '"' | '\'' => self.eat_string_literal(ch),
 
-            '0' => {
-                match self.peek() {
-                    Some('x') | Some('X') => {
-                        self.consume();
-                        self.eat_hex_digit('0')
-                    }
-                    Some('b') | Some('B') => {
-                        self.consume();
-                        self.eat_binary()
-                    }
-                    Some(c) if c.is_ascii_digit() => self.eat_digit(ch),
-                    _ => self.eat_digit(ch),
+            '0' => match self.peek() {
+                Some('x') | Some('X') => {
+                    self.consume();
+                    self.eat_hex_digit('0')
                 }
-            }
+                Some('b') | Some('B') => {
+                    self.consume();
+                    self.eat_binary()
+                }
+                Some(c) if c.is_ascii_digit() => self.eat_digit(ch),
+                _ => self.eat_digit(ch),
+            },
 
             ch if ch.is_ascii_whitespace() => {
                 let (_, start, end) = self.eat_whitespace();

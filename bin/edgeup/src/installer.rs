@@ -1,9 +1,10 @@
 //! Installer logic for the edgeup toolchain manager.
 
+use std::{fs, path::PathBuf};
+
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
+
 use crate::shell::Shell;
 
 #[allow(dead_code)]
@@ -74,7 +75,10 @@ impl Installer {
         shell.add_to_path(&self.bin_dir())?;
 
         eprintln!("Installation complete!");
-        eprintln!("To start using Edge toolchain, run: source {}", shell.rc_file().display());
+        eprintln!(
+            "To start using Edge toolchain, run: source {}",
+            shell.rc_file().display()
+        );
 
         Ok(())
     }

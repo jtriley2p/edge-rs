@@ -5,7 +5,7 @@
     missing_debug_implementations,
     missing_docs,
     unreachable_pub,
-    rustdoc::all,
+    rustdoc::all
 )]
 #![deny(unused_must_use, rust_2018_idioms)]
 
@@ -103,17 +103,25 @@ impl DiagnosticBag {
 
     /// Returns true if there are any error-level diagnostics
     pub fn has_errors(&self) -> bool {
-        self.diagnostics.iter().any(|d| d.severity == Severity::Error)
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error)
     }
 
     /// Returns the number of error diagnostics
     pub fn error_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == Severity::Error).count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+            .count()
     }
 
     /// Returns the number of warning diagnostics
     pub fn warning_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == Severity::Warning).count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Warning)
+            .count()
     }
 
     /// Returns all diagnostics
@@ -152,7 +160,12 @@ impl DiagnosticBag {
                 eprintln!("  --> line {line_num}:{col}");
                 eprintln!("   |");
                 eprintln!("   | {line}");
-                eprintln!("   | {}{} {}", " ".repeat(col.saturating_sub(1)), "^".repeat(len), label.message);
+                eprintln!(
+                    "   | {}{} {}",
+                    " ".repeat(col.saturating_sub(1)),
+                    "^".repeat(len),
+                    label.message
+                );
                 eprintln!("   |");
             }
 

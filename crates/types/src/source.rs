@@ -1,9 +1,10 @@
 //! File source objects and utilities.
 
-use crate::span::Span;
-use crate::time;
 use std::sync::Arc;
+
 use uuid::Uuid;
+
+use crate::{span::Span, time};
 
 /// Source File
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone)]

@@ -1,0 +1,61 @@
+// expressions.edge — demonstrating Edge expressions and operators
+//
+// Run with:
+//   edgec lex examples/expressions.edge
+//   edgec parse examples/expressions.edge
+
+// --- Arithmetic ---
+
+fn arithmetic(a: u256, b: u256) -> (u256) {
+    let sum: u256;
+    let diff: u256;
+    let product: u256;
+    let quotient: u256;
+    let remainder: u256;
+    let power: u256;
+
+    sum = a + b;
+    diff = a - b;
+    product = a * b;
+    quotient = a / b;
+    remainder = a % b;
+    power = a ** b;
+
+    return sum;
+}
+
+// --- Comparison and logic ---
+
+fn comparisons(x: u256, y: u256) -> (bool) {
+    let eq: bool;
+    let lt: bool;
+    let gt: bool;
+
+    eq = x == y;
+    lt = x < y;
+    gt = x > y;
+
+    return eq;
+}
+
+// --- Bitwise ---
+
+fn bitwise(x: u256, y: u256) -> (u256) {
+    let and_result: u256;
+    let or_result: u256;
+    let xor_result: u256;
+    let shifted: u256;
+
+    and_result = x & y;
+    or_result = x | y;
+    xor_result = x ^ y;
+    shifted = x << 2;
+
+    return and_result;
+}
+
+// --- Nested expressions ---
+
+fn complex(a: u256, b: u256, c: u256) -> (u256) {
+    return a + b * c;
+}

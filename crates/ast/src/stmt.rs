@@ -2,10 +2,16 @@
 //!
 //! Defines all statement types used in the Edge language.
 
-use crate::item::{TypeDecl, TraitDecl, ImplBlock, FnDecl, AbiDecl, ContractDecl, ContractImpl, ConstDecl, ModuleDecl, ModuleImport, EventDecl};
-use crate::pattern::MatchArm;
-use crate::Ident;
 use edge_types::span::Span;
+
+use crate::{
+    item::{
+        AbiDecl, ConstDecl, ContractDecl, ContractImpl, EventDecl, FnDecl, ImplBlock, ModuleDecl,
+        ModuleImport, TraitDecl, TypeDecl,
+    },
+    pattern::MatchArm,
+    Ident,
+};
 
 /// A code block containing statements
 #[derive(Debug, Clone, PartialEq)]
@@ -90,7 +96,12 @@ pub enum Stmt {
     Loop(LoopBlock),
 
     /// For loop: for (init; cond; update) { ... }
-    ForLoop(Option<Box<Self>>, Option<crate::Expr>, Option<Box<Self>>, LoopBlock),
+    ForLoop(
+        Option<Box<Self>>,
+        Option<crate::Expr>,
+        Option<Box<Self>>,
+        LoopBlock,
+    ),
 
     /// While loop: while (cond) { ... }
     WhileLoop(crate::Expr, LoopBlock),
@@ -134,6 +145,7 @@ pub enum Stmt {
 
 impl Stmt {
     /// Get the span of this statement
+    #[allow(clippy::match_same_arms)]
     pub fn span(&self) -> Span {
         match self {
             Self::VarDecl(_, _, span) => span.clone(),

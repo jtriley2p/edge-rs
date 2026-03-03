@@ -2,6 +2,7 @@
 
 // use crate::{evm::Opcode, evm_version::EVMVersion};
 use std::num::ParseIntError;
+
 use tiny_keccak::{Hasher, Keccak};
 
 /// Convert a string slice to a `[u8; 32]`

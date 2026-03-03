@@ -1,0 +1,42 @@
+// erc20.edge — a minimal ERC-20 token implementation
+//
+// Run with:
+//   edgec lex examples/erc20.edge
+//   edgec parse examples/erc20.edge
+//   edgec build examples/erc20.edge
+
+abi IERC20 {
+    fn totalSupply() -> (u256);
+    fn balanceOf(account: addr) -> (u256);
+    fn transfer(to: addr, amount: u256) -> (bool);
+    fn allowance(owner: addr, spender: addr) -> (u256);
+    fn approve(spender: addr, amount: u256) -> (bool);
+    fn transferFrom(from: addr, to: addr, amount: u256) -> (bool);
+}
+
+contract ERC20 {
+    // Token metadata
+    const NAME: &s b32;
+    const SYMBOL: &s b32;
+    const DECIMALS: u8;
+
+    // State
+    let total_supply: &s u256;
+
+    // Implements IERC20
+    pub fn totalSupply() -> (u256) {
+        return total_supply;
+    }
+
+    pub fn transfer(to: addr, amount: u256) -> (bool) {
+        return true;
+    }
+
+    pub fn approve(spender: addr, amount: u256) -> (bool) {
+        return true;
+    }
+
+    pub fn transferFrom(from: addr, to: addr, amount: u256) -> (bool) {
+        return true;
+    }
+}

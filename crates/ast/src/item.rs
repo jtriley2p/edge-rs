@@ -2,9 +2,9 @@
 //!
 //! Defines top-level items like function declarations, type declarations, etc.
 
-use crate::ty::TypeParam;
-use crate::Ident;
 use edge_types::span::Span;
+
+use crate::{ty::TypeParam, Ident};
 
 /// A function declaration
 #[derive(Debug, Clone, PartialEq)]

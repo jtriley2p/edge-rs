@@ -1,7 +1,8 @@
 //! Parse Errors
 
-use edge_types::span::Span;
 use std::fmt;
+
+use edge_types::span::Span;
 
 /// Result type for parser operations
 pub type ParseResult<T> = Result<T, ParseError>;

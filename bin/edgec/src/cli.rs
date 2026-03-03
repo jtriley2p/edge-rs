@@ -1,10 +1,13 @@
 //! CLI arguments and command handling for the edgec compiler.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use edge_driver::compiler::Compiler;
-use edge_driver::config::{CompilerConfig, EmitKind};
-use std::path::PathBuf;
+use edge_driver::{
+    compiler::Compiler,
+    config::{CompilerConfig, EmitKind},
+};
 
 /// The Edge Language Compiler
 #[derive(Debug, Parser)]
@@ -108,11 +111,9 @@ impl Cli {
         config.verbose = args.verbose;
 
         // Create and run compiler
-        let mut compiler = Compiler::new(config)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mut compiler = Compiler::new(config).map_err(|e| anyhow::anyhow!("{}", e))?;
 
-        let output = compiler.compile()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let output = compiler.compile().map_err(|e| anyhow::anyhow!("{}", e))?;
 
         // Output the result based on emit kind
         match emit {
@@ -139,7 +140,10 @@ impl Cli {
                         std::fs::write(output_file, bytecode)?;
                         eprintln!("Wrote bytecode to {}", output_file.display());
                     } else {
-                        eprintln!("Compilation successful, {} bytes of bytecode generated", bytecode.len());
+                        eprintln!(
+                            "Compilation successful, {} bytes of bytecode generated",
+                            bytecode.len()
+                        );
                     }
                 } else {
                     eprintln!("warning: bytecode generation not yet implemented, skipping output");
@@ -160,12 +164,10 @@ impl Cli {
         config.verbose = args.verbose;
 
         // Create and run compiler
-        let mut compiler = Compiler::new(config)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mut compiler = Compiler::new(config).map_err(|e| anyhow::anyhow!("{}", e))?;
 
         // Just run through the compilation pipeline to check for errors
-        compiler.compile()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        compiler.compile().map_err(|e| anyhow::anyhow!("{}", e))?;
 
         if args.verbose {
             eprintln!("Check passed!");
@@ -179,11 +181,9 @@ impl Cli {
         config.emit = EmitKind::Tokens;
 
         // Create and run compiler
-        let mut compiler = Compiler::new(config)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mut compiler = Compiler::new(config).map_err(|e| anyhow::anyhow!("{}", e))?;
 
-        let output = compiler.compile()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let output = compiler.compile().map_err(|e| anyhow::anyhow!("{}", e))?;
 
         if let Some(tokens) = output.tokens {
             println!("=== Tokens ===");
@@ -201,11 +201,9 @@ impl Cli {
         config.emit = EmitKind::Ast;
 
         // Create and run compiler
-        let mut compiler = Compiler::new(config)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mut compiler = Compiler::new(config).map_err(|e| anyhow::anyhow!("{}", e))?;
 
-        let output = compiler.compile()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let output = compiler.compile().map_err(|e| anyhow::anyhow!("{}", e))?;
 
         if let Some(ast) = output.ast {
             println!("=== Abstract Syntax Tree ===");

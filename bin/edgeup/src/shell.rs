@@ -1,8 +1,8 @@
 //! Shell integration for adding edgeup binaries to PATH.
 
+use std::{fs, path::PathBuf};
+
 use anyhow::Result;
-use std::fs;
-use std::path::PathBuf;
 
 /// Supported shell types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

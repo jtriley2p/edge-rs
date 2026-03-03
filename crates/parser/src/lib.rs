@@ -3,7 +3,7 @@
     missing_debug_implementations,
     missing_docs,
     unreachable_pub,
-    rustdoc::all,
+    rustdoc::all
 )]
 #![deny(unused_must_use, rust_2018_idioms)]
 

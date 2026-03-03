@@ -2,8 +2,9 @@
 //!
 //! Handles the token kinds to represent edge source code.
 
-use crate::span::Span;
 use std::{fmt, fmt::Write};
+
+use crate::span::Span;
 
 pub mod keywords;
 pub mod locations;

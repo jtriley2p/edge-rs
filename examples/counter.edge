@@ -1,0 +1,42 @@
+// counter.edge — a simple on-chain counter contract
+//
+// Run with:
+//   edgec lex examples/counter.edge      # print tokens
+//   edgec parse examples/counter.edge    # print AST
+//   edgec build examples/counter.edge    # compile to bytecode
+
+abi ICounter {
+    fn increment();
+    fn decrement();
+    fn get() -> (u256);
+    fn reset();
+}
+
+contract Counter {
+    // Storage slot for the counter value
+    let count: &s u256;
+
+    // Increment the counter by 1
+    pub fn increment() {
+        let val: u256;
+        val = count + 1;
+        count = val;
+    }
+
+    // Decrement the counter by 1 (saturating at 0)
+    pub fn decrement() {
+        let val: u256;
+        val = count - 1;
+        count = val;
+    }
+
+    // Return the current count
+    pub fn get() -> (u256) {
+        return count;
+    }
+
+    // Reset the counter to zero
+    pub fn reset() {
+        count = 0;
+    }
+}

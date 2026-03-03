@@ -2,8 +2,9 @@
 //!
 //! Defines patterns used in match statements and pattern matching expressions.
 
-use crate::Ident;
 use edge_types::span::Span;
+
+use crate::Ident;
 
 /// A union pattern for matching
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,7 +1,8 @@
 //! Data Types
 
-use super::locations::Location;
 use std::fmt;
+
+use super::locations::Location;
 
 /// EVM primitive types per Edge specification
 #[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Hash)]
