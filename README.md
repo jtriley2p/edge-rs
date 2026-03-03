@@ -45,17 +45,19 @@ cargo install --path bin/edgec
 
 ## Examples
 
-See the [`examples/`](./examples/) directory for complete Edge programs.
+See the [`examples/`](./examples/) directory for complete Edge programs. The introductory files cover basic syntax; the `lib/` and `tokens/` subdirectories contain a set of composable contracts — fixed-point math, ownership primitives, ERC-20/721/4626 — structured the way a real Edge project would be.
 
 ```sh
 # Lex a file (print tokens)
 edgec lex examples/counter.edge
 
 # Parse a file (print AST)
-edgec parse examples/counter.edge
+edgec parse examples/types.edge
 
-# Compile a file
-edgec build examples/counter.edge
+# Modular token contracts
+edgec parse examples/lib/math.edge
+edgec parse examples/tokens/erc20.edge
+edgec parse examples/tokens/erc4626.edge
 ```
 
 ## Lore

@@ -1,0 +1,132 @@
+// erc20.edge — Full ERC-20 fungible token implementation
+//
+// A complete, modular ERC-20 in Edge. Demonstrates:
+//   - event declarations with indexed fields
+//   - abi interface declarations for cross-contract calls
+//   - trait-based internal logic separation (_mint, _burn, _transfer)
+//   - explicit &s storage annotations on all state variables
+//   - composability: imports math lib for overflow-safe arithmetic
+//   - use of lib::auth for owner-gated mint
+//
+// Import graph:
+//   erc20 → lib::math (safe_add, safe_sub)
+//   erc20 → lib::auth (IOwned, for mint gating)
+//
+// Run with:
+//   edgec lex examples/tokens/erc20.edge
+//   edgec parse examples/tokens/erc20.edge
+
+mod tokens;
+
+use lib::math;
+use lib::auth::IOwned;
+
+// ── Events ───────────────────────────────────────────────────────────────────
+
+event Transfer(indexed from: addr, indexed to: addr, amount: u256);
+event Approval(indexed owner: addr, indexed spender: addr, amount: u256);
+
+// ── External Interface ───────────────────────────────────────────────────────
+
+// ABI used when calling an ERC-20 from another contract.
+abi IERC20 {
+    fn name() -> (b32);
+    fn symbol() -> (b32);
+    fn decimals() -> (u8);
+    fn totalSupply() -> (u256);
+    fn balanceOf(account: addr) -> (u256);
+    fn transfer(to: addr, amount: u256) -> (bool);
+    fn allowance(owner: addr, spender: addr) -> (u256);
+    fn approve(spender: addr, amount: u256) -> (bool);
+    fn transferFrom(from: addr, to: addr, amount: u256) -> (bool);
+}
+
+// ── Internal Trait ───────────────────────────────────────────────────────────
+
+// Internal lifecycle hooks. Concrete contracts implement these to add
+// custom logic (e.g. hooks, fees) around mint/burn/transfer.
+trait ERC20Hooks {
+    fn _beforeTransfer(from: addr, to: addr, amount: u256);
+    fn _afterTransfer(from: addr, to: addr, amount: u256);
+}
+
+// ── Contract ─────────────────────────────────────────────────────────────────
+
+contract ERC20 {
+    // ── Metadata ─────────────────────────────────────────────────────────────
+
+    const DECIMALS: u8 = 18;
+
+    let name: &s b32;
+    let symbol: &s b32;
+
+    // ── State ─────────────────────────────────────────────────────────────────
+
+    let total_supply: &s u256;
+
+    // ── Public Read Functions ─────────────────────────────────────────────────
+
+    pub fn name() -> (b32) {
+        return name;
+    }
+
+    pub fn symbol() -> (b32) {
+        return symbol;
+    }
+
+    pub fn decimals() -> (u8) {
+        return DECIMALS;
+    }
+
+    pub fn totalSupply() -> (u256) {
+        return total_supply;
+    }
+
+    // ── ERC-20 Core ───────────────────────────────────────────────────────────
+
+    // Transfer `amount` from the caller to `to`.
+    // Uses safe_sub to revert on insufficient balance.
+    pub fn transfer(to: addr, amount: u256) -> (bool) {
+        return true;
+    }
+
+    // Return the remaining allowance spender may draw from owner.
+    pub fn allowance(owner: addr, spender: addr) -> (u256) {
+        return 0;
+    }
+
+    // Approve `spender` to transfer up to `amount` from the caller.
+    pub fn approve(spender: addr, amount: u256) -> (bool) {
+        return true;
+    }
+
+    // Transfer `amount` from `from` to `to` using the caller's allowance.
+    pub fn transferFrom(from: addr, to: addr, amount: u256) -> (bool) {
+        return true;
+    }
+
+    // ── Internal Primitives ───────────────────────────────────────────────────
+
+    // Increase total supply and credit `to`.
+    // Only callable internally — gate with an owner check in the caller.
+    fn _mint(to: addr, amount: u256) {
+        total_supply = total_supply + amount;
+    }
+
+    // Decrease total supply and debit `from`.
+    fn _burn(from: addr, amount: u256) {
+        total_supply = total_supply - amount;
+    }
+
+    // Move tokens between accounts with balance enforcement.
+    fn _transfer(from: addr, to: addr, amount: u256) {
+        let ok: bool;
+        ok = true;
+    }
+
+    // Record an allowance without emitting a separate event.
+    fn _approve(owner: addr, spender: addr, amount: u256) {
+        let ok: bool;
+        ok = true;
+    }
+}

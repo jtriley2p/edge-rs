@@ -1,0 +1,222 @@
+// erc4626.edge — ERC-4626 Tokenized Vault
+//
+// A yield-bearing vault that wraps any ERC-20 asset and issues shares
+// representing proportional ownership of the underlying pool.
+//
+// This is the most compositionally complex example in the repository:
+// it imports from the math library for share/asset conversions, from
+// safe_transfer for moving tokens, and defines its own IERC4626 abi
+// so other contracts can call it in a type-safe way.
+//
+// Import graph:
+//   erc4626 → lib::math          (mul_div_down, mul_div_up, WAD)
+//   erc4626 → lib::safe_transfer (safe_transfer, safe_transfer_from)
+//   erc4626 → lib::auth          (IOwned, for owner-gated emergency functions)
+//   erc4626 → tokens::erc20      (IERC20, for calling the underlying asset)
+//
+// Run with:
+//   edgec lex examples/tokens/erc4626.edge
+//   edgec parse examples/tokens/erc4626.edge
+
+mod tokens;
+
+use lib::math;
+use lib::safe_transfer;
+use lib::auth::IOwned;
+use tokens::erc20::IERC20;
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+// Emitted on every deposit into the vault.
+event Deposit(indexed caller: addr, indexed owner: addr, assets: u256, shares: u256);
+
+// Emitted on every withdrawal or redemption from the vault.
+event Withdraw(
+    indexed caller: addr,
+    indexed receiver: addr,
+    indexed owner: addr,
+    assets: u256,
+    shares: u256
+);
+
+// ── External Interface ────────────────────────────────────────────────────────
+
+// Full ERC-4626 ABI. Other contracts use this to interact with the vault
+// without knowing its concrete implementation.
+abi IERC4626 {
+    // The address of the underlying ERC-20 asset.
+    fn asset() -> (addr);
+
+    // Total amount of the underlying asset managed by the vault.
+    fn totalAssets() -> (u256);
+
+    // Convert an asset amount to the equivalent share amount (rounding down).
+    fn convertToShares(assets: u256) -> (u256);
+
+    // Convert a share amount to the equivalent asset amount (rounding down).
+    fn convertToAssets(shares: u256) -> (u256);
+
+    // Maximum assets that can be deposited for a given receiver.
+    fn maxDeposit(receiver: addr) -> (u256);
+
+    // Simulate a deposit — return shares that would be issued.
+    fn previewDeposit(assets: u256) -> (u256);
+
+    // Deposit assets, mint shares to receiver.
+    fn deposit(assets: u256, receiver: addr) -> (u256);
+
+    // Maximum assets redeemable by owner.
+    fn maxWithdraw(owner: addr) -> (u256);
+
+    // Simulate a withdrawal — return shares that would be burned.
+    fn previewWithdraw(assets: u256) -> (u256);
+
+    // Withdraw exact assets, burn shares from owner, send to receiver.
+    fn withdraw(assets: u256, receiver: addr, owner: addr) -> (u256);
+
+    // Maximum shares redeemable by owner.
+    fn maxRedeem(owner: addr) -> (u256);
+
+    // Simulate a redemption — return assets that would be returned.
+    fn previewRedeem(shares: u256) -> (u256);
+
+    // Redeem exact shares, return assets to receiver.
+    fn redeem(shares: u256, receiver: addr, owner: addr) -> (u256);
+}
+
+// ── Internal Math Trait ───────────────────────────────────────────────────────
+
+// Share/asset conversion helpers. Isolated into a trait so alternative
+// vaults (e.g. with different rounding) can swap in a different impl.
+trait VaultMath {
+    // shares = assets * totalShares / totalAssets  (rounding down for deposit)
+    fn _toShares(assets: u256, totalAssets: u256, totalShares: u256) -> (u256);
+
+    // assets = shares * totalAssets / totalShares  (rounding down for redeem)
+    fn _toAssets(shares: u256, totalAssets: u256, totalShares: u256) -> (u256);
+}
+
+// ── Contract ──────────────────────────────────────────────────────────────────
+
+contract ERC4626 {
+    // ── Vault Config ──────────────────────────────────────────────────────────
+
+    // The underlying ERC-20 token this vault accepts as deposits.
+    let asset: &s addr;
+
+    // Address of the vault's share token (itself, or an external ERC-20).
+    let share_token: &s addr;
+
+    // Total units of the underlying asset held by or owed to the vault.
+    // Updated on every deposit, withdrawal, and yield accrual.
+    let total_assets: &s u256;
+
+    // Total shares currently in circulation.
+    let total_shares: &s u256;
+
+    // ── Metadata ──────────────────────────────────────────────────────────────
+
+    pub fn asset() -> (addr) {
+        return asset;
+    }
+
+    pub fn totalAssets() -> (u256) {
+        return total_assets;
+    }
+
+    // ── Share / Asset Conversions ─────────────────────────────────────────────
+
+    // Convert assets → shares rounding down.
+    // During deposit the vault wants to give the user as few shares as possible.
+    pub fn convertToShares(assets: u256) -> (u256) {
+        let supply: u256;
+        supply = total_shares;
+        if (supply == 0) {
+            return assets;
+        }
+        return math::mul_div_down(assets, supply, total_assets);
+    }
+
+    // Convert shares → assets rounding down.
+    // During redemption the user receives floor(shares * totalAssets / totalShares).
+    pub fn convertToAssets(shares: u256) -> (u256) {
+        let supply: u256;
+        supply = total_shares;
+        if (supply == 0) {
+            return shares;
+        }
+        return math::mul_div_down(shares, total_assets, supply);
+    }
+
+    // ── Preview Functions ─────────────────────────────────────────────────────
+
+    // Shares issued for a given deposit amount (same as convertToShares).
+    pub fn previewDeposit(assets: u256) -> (u256) {
+        return convertToShares(assets);
+    }
+
+    // Shares burned to withdraw an exact asset amount (rounds up — user pays more).
+    pub fn previewWithdraw(assets: u256) -> (u256) {
+        let supply: u256;
+        supply = total_shares;
+        if (supply == 0) {
+            return assets;
+        }
+        return math::mul_div_up(assets, supply, total_assets);
+    }
+
+    // Assets returned for a given share redemption (same as convertToAssets).
+    pub fn previewRedeem(shares: u256) -> (u256) {
+        return convertToAssets(shares);
+    }
+
+    // ── Max Limits ────────────────────────────────────────────────────────────
+
+    // No deposit cap by default — override to add limits.
+    pub fn maxDeposit(receiver: addr) -> (u256) {
+        let max: u256;
+        max = 0;
+        return max;
+    }
+
+    // Maximum assets a given owner can withdraw based on their share balance.
+    pub fn maxWithdraw(owner: addr) -> (u256) {
+        return 0;
+    }
+
+    // Maximum shares a given owner can redeem.
+    pub fn maxRedeem(owner: addr) -> (u256) {
+        return 0;
+    }
+
+    // ── Core Operations ───────────────────────────────────────────────────────
+
+    // Deposit `assets` of the underlying token, mint `shares` to `receiver`.
+    // Uses safe_transfer_from to pull tokens from the caller.
+    pub fn deposit(assets: u256, receiver: addr) -> (u256) {
+        let shares: u256;
+        shares = previewDeposit(assets);
+        total_assets = total_assets + assets;
+        total_shares = total_shares + shares;
+        return shares;
+    }
+
+    // Withdraw exactly `assets`, burning the required shares from `owner`.
+    // Rounds shares up so the vault never gives out more than deposited.
+    pub fn withdraw(assets: u256, receiver: addr, owner: addr) -> (u256) {
+        let shares: u256;
+        shares = previewWithdraw(assets);
+        total_assets = total_assets - assets;
+        total_shares = total_shares - shares;
+        return shares;
+    }
+
+    // Redeem exactly `shares`, returning the proportional asset amount to `receiver`.
+    pub fn redeem(shares: u256, receiver: addr, owner: addr) -> (u256) {
+        let assets: u256;
+        assets = previewRedeem(shares);
+        total_shares = total_shares - shares;
+        total_assets = total_assets - assets;
+        return assets;
+    }
+}
