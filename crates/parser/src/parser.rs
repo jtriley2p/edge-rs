@@ -137,6 +137,19 @@ impl Parser {
             TokenKind::Keyword(Keyword::For) => self.parse_for_loop(),
             TokenKind::Keyword(Keyword::While) => self.parse_while_loop(),
             TokenKind::Keyword(Keyword::Return) => self.parse_return(),
+            TokenKind::Keyword(Keyword::Break) => {
+                let tok = self.advance();
+                self.expect(TokenKind::Semicolon)?;
+                Ok(Stmt::Break(tok.span))
+            }
+            TokenKind::Keyword(Keyword::Continue) => {
+                let tok = self.advance();
+                self.expect(TokenKind::Semicolon)?;
+                Ok(Stmt::Continue(tok.span))
+            }
+            TokenKind::Keyword(Keyword::Do) => self.parse_do_while(),
+            TokenKind::Keyword(Keyword::Comptime) => self.parse_comptime(),
+            TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(),
             _ => self.parse_expr_stmt(),
         }
     }
@@ -229,6 +242,38 @@ impl Parser {
         self.skip_whitespace_and_comments();
 
         match &self.peek().kind {
+            TokenKind::Keyword(Keyword::Ext) => {
+                self.advance();
+                self.skip_whitespace_and_comments();
+                if self.check(&TokenKind::Keyword(Keyword::Fn)) {
+                    let mut decl = self.parse_fn_decl()?;
+                    decl.is_pub = true;
+                    decl.is_ext = true;
+                    let block = self.parse_code_block()?;
+                    Ok(Stmt::FnAssign(decl, block))
+                } else {
+                    Err(ParseError::InvalidExpr {
+                        message: "Expected 'fn' after 'pub ext'".to_string(),
+                        span: self.peek().span.clone(),
+                    })
+                }
+            }
+            TokenKind::Keyword(Keyword::Mut) => {
+                self.advance();
+                self.skip_whitespace_and_comments();
+                if self.check(&TokenKind::Keyword(Keyword::Fn)) {
+                    let mut decl = self.parse_fn_decl()?;
+                    decl.is_pub = true;
+                    decl.is_mut = true;
+                    let block = self.parse_code_block()?;
+                    Ok(Stmt::FnAssign(decl, block))
+                } else {
+                    Err(ParseError::InvalidExpr {
+                        message: "Expected 'fn' after 'pub mut'".to_string(),
+                        span: self.peek().span.clone(),
+                    })
+                }
+            }
             TokenKind::Keyword(Keyword::Fn) => {
                 let mut decl = self.parse_fn_decl()?;
                 decl.is_pub = true;
@@ -453,52 +498,122 @@ impl Parser {
         }))
     }
 
-    /// Parse trait declaration (stub - just skip for now)
+    /// Parse trait declaration
     fn parse_trait_stub(&mut self) -> ParseResult<Stmt> {
         let start_tok = self.expect(TokenKind::Keyword(Keyword::Trait))?;
-        let _name = self.parse_ident()?;
+        let name = self.parse_ident()?;
 
-        // Skip to opening brace
-        while !self.check(&TokenKind::OpenBrace) && !self.is_at_end() {
+        // Optional supertraits: Trait: SuperA + SuperB
+        let mut supertraits = Vec::new();
+        self.skip_whitespace_and_comments();
+        if self.check(&TokenKind::Colon) {
             self.advance();
+            supertraits.push(self.parse_ident()?);
+            while self.check(&TokenKind::Operator(edge_types::tokens::Operator::Arithmetic(
+                edge_types::tokens::ArithmeticOperator::Add,
+            ))) {
+                self.advance();
+                supertraits.push(self.parse_ident()?);
+            }
         }
 
         self.expect(TokenKind::OpenBrace)?;
 
-        // Skip everything until closing brace
-        let mut depth = 1;
-        while depth > 0 && !self.is_at_end() {
-            if self.check(&TokenKind::OpenBrace) {
-                depth += 1;
-            } else if self.check(&TokenKind::CloseBrace) {
-                depth -= 1;
-            }
-            self.advance();
+        let mut items = Vec::new();
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            self.skip_whitespace_and_comments();
+            if self.check(&TokenKind::CloseBrace) { break; }
+            items.push(self.parse_trait_item()?);
         }
 
-        // Create a stub TraitDecl
+        let end_tok = self.expect(TokenKind::CloseBrace)?;
         let span = Span {
             start: start_tok.span.start,
-            end: self.tokens[self.cursor - 1].span.end,
+            end: end_tok.span.end,
             file: start_tok.span.file,
         };
 
-        let stub_name_span = span.clone();
-
         Ok(Stmt::TraitDecl(
             edge_ast::TraitDecl {
-                name: Ident {
-                    name: "Stub".to_string(),
-                    span: stub_name_span,
-                },
+                name,
                 type_params: Vec::new(),
-                supertraits: Vec::new(),
-                items: Vec::new(),
+                supertraits,
+                items,
                 is_pub: false,
                 span: span.clone(),
             },
             span,
         ))
+    }
+
+    /// Parse trait item
+    fn parse_trait_item(&mut self) -> ParseResult<edge_ast::item::TraitItem> {
+        self.skip_whitespace_and_comments();
+        let is_pub = if self.check(&TokenKind::Keyword(Keyword::Pub)) {
+            self.advance();
+            self.skip_whitespace_and_comments();
+            true
+        } else {
+            false
+        };
+        let _ = is_pub; // may be used later
+
+        match self.peek().kind.clone() {
+            TokenKind::Keyword(Keyword::Fn) => {
+                let decl = self.parse_fn_decl()?;
+                self.skip_whitespace_and_comments();
+                if self.check(&TokenKind::OpenBrace) {
+                    let block = self.parse_code_block()?;
+                    Ok(edge_ast::item::TraitItem::FnAssign(decl, block))
+                } else {
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(edge_ast::item::TraitItem::FnDecl(decl))
+                }
+            }
+            TokenKind::Keyword(Keyword::Const) => {
+                self.advance();
+                let const_name = self.parse_ident()?;
+                let span = const_name.span.clone();
+                self.expect(TokenKind::Colon)?;
+                let ty = self.parse_type_sig()?;
+                let const_decl = edge_ast::ConstDecl { name: const_name, ty: Some(ty), span };
+                self.skip_whitespace_and_comments();
+                if self.check(&TokenKind::Operator(Operator::Assignment)) {
+                    self.advance();
+                    let expr = self.parse_expr()?;
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(edge_ast::item::TraitItem::ConstAssign(const_decl, expr))
+                } else {
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(edge_ast::item::TraitItem::ConstDecl(const_decl))
+                }
+            }
+            TokenKind::Keyword(Keyword::Type) => {
+                self.advance();
+                let type_name = self.parse_ident()?;
+                let span = type_name.span.clone();
+                let type_decl = edge_ast::TypeDecl {
+                    name: type_name,
+                    type_params: Vec::new(),
+                    is_pub: false,
+                    span,
+                };
+                self.skip_whitespace_and_comments();
+                if self.check(&TokenKind::Operator(Operator::Assignment)) {
+                    self.advance();
+                    let ty = self.parse_type_sig()?;
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(edge_ast::item::TraitItem::TypeAssign(type_decl, ty))
+                } else {
+                    self.expect(TokenKind::Semicolon)?;
+                    Ok(edge_ast::item::TraitItem::TypeDecl(type_decl))
+                }
+            }
+            _ => Err(ParseError::InvalidExpr {
+                message: format!("Unexpected token in trait body: {:?}", self.peek().kind),
+                span: self.peek().span.clone(),
+            }),
+        }
     }
 
     /// Parse contract declaration
@@ -513,12 +628,12 @@ impl Parser {
         self.expect(TokenKind::OpenBrace)?;
 
         let mut fields = Vec::new();
+        let mut consts = Vec::new();
+        let mut functions = Vec::new();
 
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
             self.skip_whitespace_and_comments();
-            if self.check(&TokenKind::CloseBrace) {
-                break;
-            }
+            if self.check(&TokenKind::CloseBrace) { break; }
 
             if self.check(&TokenKind::Keyword(Keyword::Let)) {
                 self.advance();
@@ -528,44 +643,53 @@ impl Parser {
                 self.expect(TokenKind::Semicolon)?;
                 fields.push((field_name, field_type));
             } else if self.check(&TokenKind::Keyword(Keyword::Const)) {
-                // Skip const fields for now
                 self.advance();
-                let _const_name = self.parse_ident()?;
+                let const_name = self.parse_ident()?;
+                let const_span = const_name.span.clone();
                 self.expect(TokenKind::Colon)?;
-                let _const_type = self.parse_type_sig()?;
+                let const_type = self.parse_type_sig()?;
                 self.expect(TokenKind::Operator(Operator::Assignment))?;
-                let _expr = self.parse_expr()?;
+                let expr = self.parse_expr()?;
                 self.expect(TokenKind::Semicolon)?;
+                let const_decl = edge_ast::ConstDecl { name: const_name, ty: Some(const_type), span: const_span };
+                consts.push((const_decl, expr));
             } else if self.check(&TokenKind::Keyword(Keyword::Fn))
                 || self.check(&TokenKind::Keyword(Keyword::Pub))
+                || self.check(&TokenKind::Keyword(Keyword::Ext))
             {
-                // Skip function definitions
-                // Consume tokens until we hit the next let/const or closing brace
-                let mut brace_depth = 0;
-                loop {
-                    if self.check(&TokenKind::OpenBrace) {
-                        brace_depth += 1;
-                    } else if self.check(&TokenKind::CloseBrace) {
-                        if brace_depth == 0 {
-                            break;
-                        }
-                        brace_depth -= 1;
-                    }
+                // Parse the function declaration
+                let is_pub = if self.check(&TokenKind::Keyword(Keyword::Pub)) {
                     self.advance();
-                    if self.is_at_end() {
-                        break;
-                    }
-
-                    if brace_depth == 0
-                        && (self.check(&TokenKind::Keyword(Keyword::Let))
-                            || self.check(&TokenKind::Keyword(Keyword::Const))
-                            || self.check(&TokenKind::Keyword(Keyword::Fn))
-                            || self.check(&TokenKind::Keyword(Keyword::Pub))
-                            || self.check(&TokenKind::CloseBrace))
-                    {
-                        break;
-                    }
-                }
+                    self.skip_whitespace_and_comments();
+                    true
+                } else {
+                    false
+                };
+                let is_ext = if self.check(&TokenKind::Keyword(Keyword::Ext)) {
+                    self.advance();
+                    self.skip_whitespace_and_comments();
+                    true
+                } else {
+                    false
+                };
+                let is_mut = if self.check(&TokenKind::Keyword(Keyword::Mut)) {
+                    self.advance();
+                    self.skip_whitespace_and_comments();
+                    true
+                } else {
+                    false
+                };
+                let fn_decl = self.parse_fn_decl()?;
+                let _body = self.parse_code_block()?;
+                functions.push(edge_ast::ContractFnDecl {
+                    name: fn_decl.name,
+                    params: fn_decl.params,
+                    returns: fn_decl.returns,
+                    is_ext,
+                    is_mut,
+                    span: fn_decl.span,
+                });
+                let _ = is_pub; // tracked for future use
             } else {
                 self.advance();
             }
@@ -582,6 +706,8 @@ impl Parser {
         Ok(Stmt::ContractDecl(edge_ast::ContractDecl {
             name,
             fields,
+            consts,
+            functions,
             span,
         }))
     }
@@ -590,13 +716,7 @@ impl Parser {
     fn parse_expr_stmt(&mut self) -> ParseResult<Stmt> {
         let expr = self.parse_expr()?;
         self.expect(TokenKind::Semicolon)?;
-
-        let span = expr.span();
-        Ok(Stmt::VarAssign(
-            expr,
-            Expr::Literal(Box::new(Lit::Bool(false, span.clone()))),
-            span,
-        ))
+        Ok(Stmt::Expr(expr))
     }
 
     /// Parse if-else statement
@@ -638,25 +758,65 @@ impl Parser {
 
     /// Parse match statement
     fn parse_match(&mut self) -> ParseResult<Stmt> {
-        let start_tok = self.expect(TokenKind::Keyword(Keyword::Match))?;
-        let _expr = self.parse_expr()?;
+        self.expect(TokenKind::Keyword(Keyword::Match))?;
+        let expr = self.parse_expr()?;
         self.expect(TokenKind::OpenBrace)?;
 
+        let mut arms = Vec::new();
         while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
             self.skip_whitespace_and_comments();
-            if self.check(&TokenKind::CloseBrace) {
-                break;
-            }
-            // Skip match arms for now
-            self.advance();
+            if self.check(&TokenKind::CloseBrace) { break; }
+            let pattern = self.parse_match_pattern()?;
+            self.expect(TokenKind::FatArrow)?;
+            let body = self.parse_code_block()?;
+            arms.push(edge_ast::pattern::MatchArm { pattern, body });
+            self.skip_whitespace_and_comments();
+            if self.check(&TokenKind::Comma) { self.advance(); }
         }
 
         self.expect(TokenKind::CloseBrace)?;
+        Ok(Stmt::Match(expr, arms))
+    }
 
-        Ok(Stmt::Loop(LoopBlock {
-            items: vec![],
-            span: start_tok.span,
-        }))
+    /// Parse match pattern
+    fn parse_match_pattern(&mut self) -> ParseResult<edge_ast::pattern::MatchPattern> {
+        self.skip_whitespace_and_comments();
+        if let TokenKind::Ident(ref name) = self.peek().kind.clone() {
+            if name == "_" {
+                self.advance();
+                return Ok(edge_ast::pattern::MatchPattern::Wildcard);
+            }
+        }
+        let ident = self.parse_ident()?;
+        if self.check(&TokenKind::DoubleColon) {
+            self.advance();
+            let member = self.parse_ident()?;
+            let mut bindings = Vec::new();
+            if self.check(&TokenKind::OpenParen) {
+                self.advance();
+                while !self.check(&TokenKind::CloseParen) && !self.is_at_end() {
+                    self.skip_whitespace_and_comments();
+                    if self.check(&TokenKind::CloseParen) { break; }
+                    bindings.push(self.parse_ident()?);
+                    self.skip_whitespace_and_comments();
+                    if !self.check(&TokenKind::CloseParen) { self.expect(TokenKind::Comma)?; }
+                }
+                self.expect(TokenKind::CloseParen)?;
+            }
+            let span = Span {
+                start: ident.span.start,
+                end: self.tokens[self.cursor - 1].span.end,
+                file: ident.span.file.clone(),
+            };
+            Ok(edge_ast::pattern::MatchPattern::Union(edge_ast::pattern::UnionPattern {
+                union_name: ident,
+                member_name: member,
+                bindings,
+                span,
+            }))
+        } else {
+            Ok(edge_ast::pattern::MatchPattern::Ident(ident))
+        }
     }
 
     /// Parse loop statement
@@ -741,24 +901,116 @@ impl Parser {
         Ok(Stmt::Return(Some(expr), span))
     }
 
+    /// Parse do-while statement
+    fn parse_do_while(&mut self) -> ParseResult<Stmt> {
+        let start_tok = self.expect(TokenKind::Keyword(Keyword::Do))?;
+        let items = self.parse_loop_block_items()?;
+        self.expect(TokenKind::Keyword(Keyword::While))?;
+        self.expect(TokenKind::OpenParen)?;
+        let cond = self.parse_expr()?;
+        self.expect(TokenKind::CloseParen)?;
+        self.expect(TokenKind::Semicolon)?;
+        Ok(Stmt::DoWhile(
+            LoopBlock { items, span: start_tok.span },
+            cond,
+        ))
+    }
+
+    /// Parse comptime statement
+    fn parse_comptime(&mut self) -> ParseResult<Stmt> {
+        self.expect(TokenKind::Keyword(Keyword::Comptime))?;
+        self.skip_whitespace_and_comments();
+        if self.check(&TokenKind::Keyword(Keyword::Fn)) {
+            let decl = self.parse_fn_decl()?;
+            let block = self.parse_code_block()?;
+            Ok(Stmt::ComptimeFn(decl, block))
+        } else {
+            let stmt = self.parse_stmt()?;
+            Ok(Stmt::ComptimeBranch(Box::new(stmt)))
+        }
+    }
+
+    /// Parse impl block
+    fn parse_impl_block(&mut self) -> ParseResult<Stmt> {
+        let start_tok = self.expect(TokenKind::Keyword(Keyword::Impl))?;
+        let ty_name = self.parse_ident()?;
+
+        // Check for trait impl: impl TraitName for TypeName
+        // Currently "for" is not in keywords - skip for now
+        let trait_impl = None;
+
+        self.expect(TokenKind::OpenBrace)?;
+
+        let mut items = Vec::new();
+        while !self.check(&TokenKind::CloseBrace) && !self.is_at_end() {
+            self.skip_whitespace_and_comments();
+            if self.check(&TokenKind::CloseBrace) { break; }
+
+            let is_pub = if self.check(&TokenKind::Keyword(Keyword::Pub)) {
+                self.advance();
+                self.skip_whitespace_and_comments();
+                true
+            } else {
+                false
+            };
+
+            match self.peek().kind.clone() {
+                TokenKind::Keyword(Keyword::Fn) => {
+                    let mut decl = self.parse_fn_decl()?;
+                    decl.is_pub = is_pub;
+                    let block = self.parse_code_block()?;
+                    items.push(edge_ast::item::ImplItem::FnAssign(decl, block));
+                }
+                TokenKind::Keyword(Keyword::Const) => {
+                    self.advance();
+                    let const_name = self.parse_ident()?;
+                    let const_span = const_name.span.clone();
+                    self.expect(TokenKind::Colon)?;
+                    let ty = self.parse_type_sig()?;
+                    self.expect(TokenKind::Operator(Operator::Assignment))?;
+                    let expr = self.parse_expr()?;
+                    self.expect(TokenKind::Semicolon)?;
+                    let const_decl = edge_ast::ConstDecl { name: const_name, ty: Some(ty), span: const_span };
+                    items.push(edge_ast::item::ImplItem::ConstAssign(const_decl, expr));
+                }
+                TokenKind::Keyword(Keyword::Type) => {
+                    self.advance();
+                    let type_name = self.parse_ident()?;
+                    let type_decl = edge_ast::TypeDecl {
+                        name: type_name.clone(),
+                        type_params: Vec::new(),
+                        is_pub,
+                        span: type_name.span.clone(),
+                    };
+                    self.expect(TokenKind::Operator(Operator::Assignment))?;
+                    let ty = self.parse_type_sig()?;
+                    self.expect(TokenKind::Semicolon)?;
+                    items.push(edge_ast::item::ImplItem::TypeAssign(type_decl, ty));
+                }
+                _ => { self.advance(); }
+            }
+        }
+
+        let end_tok = self.expect(TokenKind::CloseBrace)?;
+        let span = Span {
+            start: start_tok.span.start,
+            end: end_tok.span.end,
+            file: start_tok.span.file,
+        };
+
+        Ok(Stmt::ImplBlock(edge_ast::item::ImplBlock {
+            ty_name,
+            type_params: Vec::new(),
+            trait_impl,
+            items,
+            span,
+        }))
+    }
+
     /// Parse code block as statement
     fn parse_code_block_stmt(&mut self) -> ParseResult<Stmt> {
         let block = self.parse_code_block()?;
-        let span = block.span.clone();
-
-        let loop_items = block
-            .stmts
-            .into_iter()
-            .map(|item| match item {
-                BlockItem::Expr(e) => LoopItem::Expr(e),
-                BlockItem::Stmt(s) => LoopItem::Stmt(s),
-            })
-            .collect();
-
-        Ok(Stmt::Loop(LoopBlock {
-            items: loop_items,
-            span,
-        }))
+        Ok(Stmt::CodeBlock(block))
     }
 
     // ============ Expression Parsing ============

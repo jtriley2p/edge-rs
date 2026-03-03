@@ -135,6 +135,10 @@ pub struct ContractDecl {
     pub name: Ident,
     /// Contract fields (storage layout)
     pub fields: Vec<(Ident, crate::ty::TypeSig)>,
+    /// Contract constants
+    pub consts: Vec<(ConstDecl, crate::Expr)>,
+    /// Contract functions
+    pub functions: Vec<ContractFnDecl>,
     /// Source span
     pub span: Span,
 }
