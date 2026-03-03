@@ -51,7 +51,7 @@ contract ERC20 {
 
     // Maximum u256 value — used as sentinel for infinite allowances.
     // Allowances set to MAX_UINT are never decremented on transferFrom (solmate pattern).
-    const MAX_UINT: u256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
+    const MAX_UINT: u256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
     let name: &s b32;
     let symbol: &s b32;

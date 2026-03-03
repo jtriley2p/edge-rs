@@ -190,3 +190,98 @@ fn parse_incomplete_fn_fails() {
     let result = parse("fn foo(");
     assert!(result.is_err(), "incomplete function should fail");
 }
+
+// ─── New Top-Level Constructs ──────────────────────────────────────
+
+#[test]
+fn parse_event_declaration() {
+    let source = "event Transfer(indexed from: addr, to: addr, amount: u256);";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse event declaration failed: {:?}",
+        result.err()
+    );
+    let program = result.unwrap();
+    assert_eq!(program.stmts.len(), 1);
+    assert!(matches!(program.stmts[0], edge_ast::Stmt::EventDecl(..)));
+    if let edge_ast::Stmt::EventDecl(ref event) = program.stmts[0] {
+        assert_eq!(event.name.name, "Transfer");
+        assert_eq!(event.fields.len(), 3);
+        assert!(event.fields[0].indexed, "from should be indexed");
+        assert!(!event.fields[1].indexed, "to should not be indexed");
+    }
+}
+
+#[test]
+fn parse_abi_declaration() {
+    let source =
+        "abi IERC20 { fn transfer(to: addr, amount: u256) -> (bool); fn approve(spender: addr, amount: u256) -> (bool); }";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse abi declaration failed: {:?}",
+        result.err()
+    );
+    let program = result.unwrap();
+    assert_eq!(program.stmts.len(), 1);
+    assert!(matches!(program.stmts[0], edge_ast::Stmt::AbiDecl(..)));
+    if let edge_ast::Stmt::AbiDecl(ref abi) = program.stmts[0] {
+        assert_eq!(abi.name.name, "IERC20");
+        assert_eq!(abi.functions.len(), 2);
+        assert_eq!(abi.functions[0].name.name, "transfer");
+    }
+}
+
+#[test]
+fn parse_pub_fn_declaration() {
+    let source = "pub fn foo() -> (u256) { return 42; }";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse pub fn declaration failed: {:?}",
+        result.err()
+    );
+    let program = result.unwrap();
+    assert_eq!(program.stmts.len(), 1);
+    assert!(matches!(program.stmts[0], edge_ast::Stmt::FnAssign(..)));
+    if let edge_ast::Stmt::FnAssign(ref decl, _) = program.stmts[0] {
+        assert!(decl.is_pub, "function should be public");
+        assert_eq!(decl.name.name, "foo");
+    }
+}
+
+#[test]
+fn parse_module_declaration() {
+    let source = "mod tokens;";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse module declaration failed: {:?}",
+        result.err()
+    );
+    let program = result.unwrap();
+    assert_eq!(program.stmts.len(), 1);
+    assert!(matches!(program.stmts[0], edge_ast::Stmt::ModuleDecl(..)));
+    if let edge_ast::Stmt::ModuleDecl(ref module) = program.stmts[0] {
+        assert_eq!(module.name.name, "tokens");
+    }
+}
+
+#[test]
+fn parse_use_import() {
+    let source = "use lib::math;";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse use import failed: {:?}",
+        result.err()
+    );
+    let program = result.unwrap();
+    assert_eq!(program.stmts.len(), 1);
+    assert!(matches!(program.stmts[0], edge_ast::Stmt::ModuleImport(..)));
+    if let edge_ast::Stmt::ModuleImport(ref import) = program.stmts[0] {
+        assert_eq!(import.root.name, "lib");
+        assert!(import.path.is_some());
+    }
+}

@@ -41,6 +41,20 @@ lint: check-format check-clippy check-deny check-docs
 clean:
     cargo clean
 
+# Parse all example contracts with edgec
+check-examples:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    failed=0
+    while IFS= read -r -d '' f; do
+        echo "parsing $f"
+        if ! cargo run --bin edgec --quiet -- parse "$f" 2>&1; then
+            echo "FAILED: $f"
+            failed=1
+        fi
+    done < <(find examples -name '*.edge' -print0 | sort -z)
+    exit $failed
+
 # Serve the book
 book:
     mdbook serve --open
