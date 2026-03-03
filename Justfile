@@ -1,3 +1,12 @@
+# Default to display help menu
+default:
+    @just --list
+
+alias b := build
+alias t := test
+alias c := clean
+alias l := lint
+
 # Build all
 build:
     cargo build --workspace
@@ -13,6 +22,10 @@ test:
 # Run tests for CI (using nextest)
 test-ci:
     cargo nextest run --workspace
+
+# Fix formatting
+format-fix:
+    cargo +nightly fmt --all
 
 # Check formatting
 check-format:

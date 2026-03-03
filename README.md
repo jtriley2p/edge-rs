@@ -5,6 +5,7 @@
 [![Language]][edge-lang]
 [![EVM]][evm-link]
 [![Rust]][rust-link]
+[![Alpha]][alpha-note]
 
 [CI]: https://img.shields.io/github/actions/workflow/status/refcell/edge-rs/ci.yml?branch=main&label=ci
 [actions]: https://github.com/refcell/edge-rs/actions?query=branch%3Amain
@@ -16,6 +17,11 @@
 [evm-link]: https://ethereum.org/en/developers/docs/evm/
 [Rust]: https://img.shields.io/badge/built%20with-rust-orange.svg
 [rust-link]: https://www.rust-lang.org/
+[Alpha]: https://img.shields.io/badge/status-alpha-red.svg
+[alpha-note]: #alpha-software
+
+> [!IMPORTANT]
+> Edge is alpha software. The compiler is under active development — language features, syntax, and APIs will change without notice. **Do not use in production.**
 
 **edge-rs** is a compiler for the [Edge language](https://edgelang.netlify.app/) — an EVM-targeted DSL for writing smart contracts with a Rust-like type system.
 

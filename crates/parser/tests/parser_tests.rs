@@ -114,7 +114,7 @@ fn parse_fn_with_return_type() {
 
 #[test]
 fn parse_binary_add_expression() {
-    // Expression statements go through parse_expr_stmt which wraps them in VarAssign
+    // Expression statements are parsed as Stmt::Expr
     let result = parse("1 + 2;");
     assert!(
         result.is_ok(),
@@ -124,21 +124,18 @@ fn parse_binary_add_expression() {
     let program = result.unwrap();
     assert_eq!(program.stmts.len(), 1);
 
-    // The expression statement is wrapped in VarAssign by the parser
-    if let edge_ast::Stmt::VarAssign(ref lhs, _, _) = program.stmts[0] {
-        // The lhs should be a Binary expression (1 + 2)
+    // The expression statement is wrapped in Expr by the parser
+    if let edge_ast::Stmt::Expr(ref expr) = program.stmts[0] {
+        // The expr should be a Binary expression (1 + 2)
         assert!(
-            matches!(lhs, edge_ast::Expr::Binary(..)),
-            "expected Binary expression, got {lhs:?}"
+            matches!(expr, edge_ast::Expr::Binary(..)),
+            "expected Binary expression, got {expr:?}"
         );
-        if let edge_ast::Expr::Binary(_, ref op, _, _) = lhs {
+        if let edge_ast::Expr::Binary(_, ref op, _, _) = expr {
             assert_eq!(*op, edge_ast::BinOp::Add);
         }
     } else {
-        panic!(
-            "expected VarAssign wrapping expression, got {:?}",
-            program.stmts[0]
-        );
+        panic!("expected Expr, got {:?}", program.stmts[0]);
     }
 }
 
@@ -284,4 +281,93 @@ fn parse_use_import() {
         assert_eq!(import.root.name, "lib");
         assert!(import.path.is_some());
     }
+}
+
+// ─── Control Flow Statements ───────────────────────────────────────
+
+#[test]
+fn parse_break_statement() {
+    // break inside a loop context - test at top level for simplicity
+    // (parser doesn't enforce context, just syntax)
+    let result = parse("break;");
+    assert!(result.is_ok(), "parse break failed: {:?}", result.err());
+    assert!(matches!(
+        result.unwrap().stmts[0],
+        edge_ast::Stmt::Break(..)
+    ));
+}
+
+#[test]
+fn parse_continue_statement() {
+    let result = parse("continue;");
+    assert!(result.is_ok(), "parse continue failed: {:?}", result.err());
+    assert!(matches!(
+        result.unwrap().stmts[0],
+        edge_ast::Stmt::Continue(..)
+    ));
+}
+
+// ─── Impl Block ───────────────────────────────────────────────────
+
+#[test]
+fn parse_impl_block() {
+    let source = "impl Foo { fn bar() {} }";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse impl block failed: {:?}",
+        result.err()
+    );
+    assert!(matches!(
+        result.unwrap().stmts[0],
+        edge_ast::Stmt::ImplBlock(..)
+    ));
+}
+
+// ─── Contract with Functions ──────────────────────────────────────
+
+#[test]
+fn parse_contract_with_functions() {
+    let source = "contract Counter { let count: &s u256; pub fn increment() { } }";
+    let result = parse(source);
+    assert!(
+        result.is_ok(),
+        "parse contract with functions failed: {:?}",
+        result.err()
+    );
+    if let edge_ast::Stmt::ContractDecl(ref c) = result.unwrap().stmts[0] {
+        assert_eq!(c.name.name, "Counter");
+        assert_eq!(c.fields.len(), 1);
+        assert_eq!(c.functions.len(), 1);
+    } else {
+        panic!("expected ContractDecl");
+    }
+}
+
+// ─── Trait with Real Name ─────────────────────────────────────────
+
+#[test]
+fn parse_trait_with_real_name() {
+    let source = "trait IOwned { fn owner() -> (addr); }";
+    let result = parse(source);
+    assert!(result.is_ok(), "parse trait failed: {:?}", result.err());
+    if let edge_ast::Stmt::TraitDecl(ref t, _) = result.unwrap().stmts[0] {
+        assert_eq!(t.name.name, "IOwned");
+        assert_eq!(t.items.len(), 1);
+    } else {
+        panic!("expected TraitDecl");
+    }
+}
+
+// ─── Match Statement ──────────────────────────────────────────────
+
+#[test]
+fn parse_match_statement() {
+    let source = "match x { Foo::Bar => { } }";
+    let result = parse(source);
+    assert!(result.is_ok(), "parse match failed: {:?}", result.err());
+    assert!(matches!(
+        result.unwrap().stmts[0],
+        edge_ast::Stmt::Match(..)
+    ));
 }
